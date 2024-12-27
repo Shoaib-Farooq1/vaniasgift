@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday Puzzle</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background: #fce4ec;
+            overflow: hidden;
+        }
+
+        #landing {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #puzzle-container {
+            display: none;
+            margin: 20px auto;
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+
+        .piece {
+            width: 100px;
+            height: 100px;
+            position: absolute;
+            border: 1px solid #fff;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            cursor: grab;
+            background-size: 400px 400px;
+        }
+
+        #complete-message {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            font-size: 24px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn {
+            background: #ff80ab;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: #ff4081;
+        }
+
+        #solve-button {
+            margin-top: 20px;
+        }
+
+        #surprise-container {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #surprise-container img {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        #cat-counting-container {
+            display: none;
+            margin-top: 30px;
+        }
+
+        #cat-counter {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        #cat-answer {
+            font-size: 18px;
+            padding: 8px;
+            width: 100px;
+            margin-top: 10px;
+        }
+
+        #cat-submit-btn {
+            background-color: #ff80ab;
+            padding: 10px;
+            color: white;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #cat-submit-btn:hover {
+            background-color: #ff4081;
+        }
+
+        /* Keyframes for moving cats */
+        @keyframes moveLeftToRight {
+            from {
+                left: 100%; /* Start off-screen to the right */
+            }
+            to {
+                left: -50px; /* Move off-screen to the left */
+            }
+        }
+
+        .cat {
+            position: absolute;
+            width: 100px; /* Set the cat size */
+            height: 80px;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Landing Page -->
+    <div id="landing">
+        <h1>Happy Birthday, Vano!</h1>
+        <p>Can you solve this puzzle to reveal your surprise?</p>
+        <button class="btn" onclick="startPuzzle()">Start Puzzle</button>
+    </div>
+
+    <!-- Puzzle Container -->
+    <div id="puzzle-container"></div>
+
+    <!-- Solve Button -->
+    <button id="solve-button" class="btn" style="display: none;" onclick="solvePuzzle()">Solve for Me</button>
+
+    <!-- Completion Message -->
+    <div id="complete-message">
+        <h2>YOU COMPLETE ME ❤️</h2>
+        <button class="btn" onclick="startCatCountingPuzzle()">See Your Surprise</button>
+    </div>
+
+    <!-- Cat Counting Puzzle -->
+    <div id="cat-counting-container">
+        <h2>Count how many baby vanos appear in 10 seconds!</h2>
+        <div id="cat-counter"></div>
+        <input id="cat-answer" type="text" placeholder="Your answer">
+        <button id="cat-submit-btn" onclick="submitCatAnswer()">Submit Answer</button>
+    </div>
+
+    <!-- Surprise Container -->
+    <div id="surprise-container">
+        <h2>Your Surprise!</h2>
+        <img id="surprise-gif" src="" alt="Surprise GIF">
+    </div>
+
+    <script>
+        const puzzleContainer = document.getElementById("puzzle-container");
+        const completeMessage = document.getElementById("complete-message");
+        const landing = document.getElementById("landing");
+        const solveButton = document.getElementById("solve-button");
+        const surpriseContainer = document.getElementById("surprise-container");
+        const surpriseGif = document.getElementById("surprise-gif");
+
+        const catCountingContainer = document.getElementById("cat-counting-container");
+        const catCounter = document.getElementById("cat-counter");
+        const catAnswerInput = document.getElementById("cat-answer");
+        const catSubmitBtn = document.getElementById("cat-submit-btn");
+
+        const imageURL = 'hehehe.png'; // Your puzzle image URL
+        const gifURL = 'vaniasgift.gif'; // Your surprise gif URL
+
+        const gridSize = 4;
+        const pieceSize = 400 / gridSize;
+
+        let pieces = [];
+        let emptyX = gridSize - 1;
+        let emptyY = gridSize - 1;
+
+        let catCount = 0;
+        let timer = 10; // Set timer to 10 seconds
+        let countdownInterval;
+        let catInterval;
+
+        let catPositions = []; // Array to store cat positions to prevent overlap
+
+        // Initialize Puzzle
+        function startPuzzle() {
+            landing.style.display = "none";
+            puzzleContainer.style.display = "block";
+            solveButton.style.display = "inline-block";
+
+            // Create pieces
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    if (x === emptyX && y === emptyY) continue;
+
+                    const piece = document.createElement("div");
+                    piece.classList.add("piece");
+                    piece.style.backgroundImage = `url(${imageURL})`;
+                    piece.style.left = `${x * pieceSize}px`;
+                    piece.style.top = `${y * pieceSize}px`;
+                    piece.style.backgroundPosition = `-${x * pieceSize}px -${y * pieceSize}px`;
+
+                    piece.dataset.x = x;
+                    piece.dataset.y = y;
+
+                    piece.addEventListener("click", () => movePiece(piece));
+
+                    pieces.push(piece);
+                    puzzleContainer.appendChild(piece);
+                }
+            }
+
+            shufflePieces();
+        }
+
+        // Shuffle Puzzle
+        function shufflePieces() {
+            for (let i = 0; i < 100; i++) {
+                const movablePieces = pieces.filter(canMove);
+                const randomPiece = movablePieces[Math.floor(Math.random() * movablePieces.length)];
+                movePiece(randomPiece, false);
+            }
+        }
+
+        // Move Piece
+        function movePiece(piece, checkWin = true) {
+            const x = parseInt(piece.dataset.x);
+            const y = parseInt(piece.dataset.y);
+
+            if (!canMove(piece)) return;
+
+            piece.style.left = `${emptyX * pieceSize}px`;
+            piece.style.top = `${emptyY * pieceSize}px`;
+
+            piece.dataset.x = emptyX;
+            piece.dataset.y = emptyY;
+
+            emptyX = x;
+            emptyY = y;
+
+            if (checkWin) checkCompletion();
+        }
+
+        // Check if Piece Can Move
+        function canMove(piece) {
+            const x = parseInt(piece.dataset.x);
+            const y = parseInt(piece.dataset.y);
+
+            return (
+                (Math.abs(x - emptyX) === 1 && y === emptyY) ||
+                (Math.abs(y - emptyY) === 1 && x === emptyX)
+            );
+        }
+
+        // Check if Puzzle is Complete
+        function checkCompletion() {
+            const isComplete = pieces.every(piece => {
+                const x = parseInt(piece.dataset.x);
+                const y = parseInt(piece.dataset.y);
+                const bgX = -parseInt(piece.style.backgroundPositionX);
+                const bgY = -parseInt(piece.style.backgroundPositionY);
+
+                return x * pieceSize === bgX && y * pieceSize === bgY;
+            });
+
+            if (isComplete) {
+                puzzleContainer.style.display = "none";
+                completeMessage.style.display = "block";
+                solveButton.style.display = "none";
+            }
+        }
+
+        // Solve Puzzle Automatically
+        function solvePuzzle() {
+            pieces.forEach(piece => {
+                const bgX = -parseInt(piece.style.backgroundPositionX);
+                const bgY = -parseInt(piece.style.backgroundPositionY);
+
+                piece.style.left = `${bgX}px`;
+                piece.style.top = `${bgY}px`;
+
+                piece.dataset.x = bgX / pieceSize;
+                piece.dataset.y = bgY / pieceSize;
+            });
+
+            emptyX = gridSize - 1;
+            emptyY = gridSize - 1;
+
+            checkCompletion();
+        }
+
+        // Show the Surprise (GIF)
+        function nextPage() {
+            surpriseContainer.style.display = "block";
+            surpriseGif.src = gifURL;
+        }
+
+        // Start Cat Counting Puzzle
+        function startCatCountingPuzzle() {
+            completeMessage.style.display = "none";
+            catCountingContainer.style.display = "block";
+            catCounter.textContent = `Time left: ${timer} seconds`;
+            startCatTimer();
+            spawnCats();
+        }
+
+        // Start Countdown Timer
+        function startCatTimer() {
+            countdownInterval = setInterval(() => {
+                timer--;
+                catCounter.textContent = `Time left: ${timer} seconds`;
+                if (timer === 0) {
+                    clearInterval(countdownInterval);
+                    stopCatSpawn();
+                    enableAnswerSubmission();
+                }
+            }, 1000);
+        }
+
+        // Spawn Cats at Random Intervals and Positions
+        function spawnCats() {
+            const totalCats = 23; // Total number of cats
+            let spawnedCatCount = 0; // Counter for number of spawned cats
+
+            // Random interval to spawn cats
+            const catInterval = setInterval(() => {
+                // Randomly spawn between 1 to 3 cats at once
+                const numberOfCatsToSpawn = Math.floor(Math.random() * 3) + 1;
+
+                // Prevent spawning more than 23 cats
+                if (spawnedCatCount + numberOfCatsToSpawn > totalCats) {
+                    // If adding this number of cats exceeds 23, spawn only the remaining required cats
+                    numberOfCatsToSpawn = totalCats - spawnedCatCount;
+                }
+
+                // Spawn the cats
+                for (let i = 0; i < numberOfCatsToSpawn; i++) {
+                    if (spawnedCatCount >= totalCats) {
+                        clearInterval(catInterval); // Stop after spawning 23 cats
+                        return;
+                    }
+
+                    let randomTop, randomLeft;
+                    let overlap = true;
+
+                    // Ensure no overlap
+                    while (overlap) {
+                        randomTop = Math.floor(Math.random() * window.innerHeight);
+                        randomLeft = Math.floor(Math.random() * window.innerWidth);
+
+                        // Check if the position is already occupied
+                        overlap = catPositions.some(pos => 
+                            Math.abs(pos.top - randomTop) < 50 && Math.abs(pos.left - randomLeft) < 50
+                        );
+                    }
+
+                    // Save the new position
+                    catPositions.push({ top: randomTop, left: randomLeft });
+
+                    // Create a new cat element
+                    const cat = document.createElement("img");
+                    cat.src = "babyvano.PNG"; // Replace with your cat image URL
+
+                    cat.classList.add("cat");
+                    cat.style.top = `${randomTop}px`;
+                    cat.style.left = `${randomLeft}px`;
+
+                    // Randomize the speed (animation duration)
+                    const randomSpeed = Math.random() * (3 - 0.5) + 0.5; // Random speed between 0.5s and 3s
+                    cat.style.animation = `moveLeftToRight ${randomSpeed}s ease-in-out forwards`;
+
+                    document.body.appendChild(cat);
+
+                    spawnedCatCount++; // Increment the number of cats spawned
+                }
+
+                // Stop spawning once we reach 23 cats
+                if (spawnedCatCount >= totalCats) {
+                    clearInterval(catInterval); // Stop the interval once we reach the target
+                }
+
+            }, Math.floor(Math.random() * 500) + 500); // Randomize spawn interval (500ms to 1000ms)
+        }
+
+
+        // Stop Cat Spawning
+        function stopCatSpawn() {
+            clearInterval(catInterval);
+        }
+
+        // Enable Answer Submission
+        function enableAnswerSubmission() {
+            catAnswerInput.disabled = false;
+            catSubmitBtn.disabled = false;
+        }
+
+        // Submit Answer for Cat Counting Puzzle
+        function submitCatAnswer() {
+            const userAnswer = parseInt(catAnswerInput.value);
+            if (userAnswer === 23) {
+                surpriseContainer.style.display = "block";
+                surpriseGif.src = 'vaniasgift.gif'; // Replace with valid URL
+            } else {
+                alert("Wrong answer! Try again.");
+            }
+        }
+    </script>
+</body>
+</html>
